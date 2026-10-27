@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#222}canvas{display:block}</style></head>
+<body><video id="v" muted playsinline preload="auto" style="position:absolute;left:-9999px"></video><canvas id="c"></canvas>
+<script>
+const v = document.getElementById('v'), c = document.getElementById('c'), g = c.getContext('2d');
+window.load = (src) => new Promise(r => { v.onloadedmetadata = () => r({ w: v.videoWidth, h: v.videoHeight, d: v.duration }); v.src = src; });
+const seek = t => new Promise(r => { v.onseeked = () => r(); v.currentTime = t; });
+// times: array of seconds; crop: [x,y,w,h] in video px; cellW: output width of each cell
+window.sheet = async (times, cols, cellW, crop) => {
+  const [sx, sy, sw, sh] = crop || [0, 0, v.videoWidth, v.videoHeight];
+  const cellH = Math.round(cellW * sh / sw);
+  const rows = Math.ceil(times.length / cols);
+  c.width = cols * cellW; c.height = rows * (cellH + 16);
+  g.fillStyle = '#222'; g.fillRect(0, 0, c.width, c.height);
+  g.font = '12px monospace'; g.fillStyle = '#ff0';
+  for (let k = 0; k < times.length; k++) {
+    await seek(times[k]);
+    const x = (k % cols) * cellW, y = Math.floor(k / cols) * (cellH + 16);
+    g.drawImage(v, sx, sy, sw, sh, x, y + 16, cellW, cellH);
+    g.fillStyle = '#ff0'; g.fillText(times[k].toFixed(2) + 's', x + 4, y + 12);
+  }
+  return { w: c.width, h: c.height };
+};
+</script></body></html>

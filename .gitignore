@@ -1,0 +1,4 @@
+# Recordings and screenshots of the reference game: local input for the analysis, not ours to publish.
+ReferenceResources/
+node_modules/
+.wrangler/

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1b1925">
+<title>噗叽水球</title>
+<meta name="description" content="软体物理合成小游戏：拖动瞄准发射 Q 弹的水球，相同数字碰在一起就会合成。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23110f18'/%3E%3Cpath d='M32 9c13 0 23 9 23 23 0 13-10 23-23 23S9 46 9 33C9 19 19 9 32 9z' fill='%23ff5468'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar" id="topbar">
+    <div class="scoreboard">
+      <div class="score-tile" id="score-tile"><span class="score" id="score">0</span><span class="unit">分</span></div>
+      <div class="best">最高 <span id="best">0</span></div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btn-sound" type="button" aria-label="关闭声音" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="on" d="M4 9h4l5-4v14l-5-4H4z M16 8.5c1.2 1 1.8 2.2 1.8 3.5s-.6 2.5-1.8 3.5 M18.6 6c2 1.6 3 3.6 3 6s-1 4.4-3 6"/><path class="off" d="M4 9h4l5-4v14l-5-4H4z M16.5 9.5l5 5 M21.5 9.5l-5 5"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-pause" type="button" aria-label="暂停">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14 M16 5v14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="game" aria-label="游戏画面：按住拖动瞄准，松手发射水球"></canvas>
+  </main>
+
+  <footer class="bottombar" id="bottombar">
+    <button class="pill-btn" id="btn-shake" type="button" aria-label="摇一摇水箱">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l-3 4 3 4 M17 12l3 4-3 4 M4 8h11a5 5 0 0 1 5 5 M20 16H9a5 5 0 0 1-5-5"/></svg>
+      摇一摇 <span class="pips" id="pips"><i></i><i></i><i></i></span>
+    </button>
+    <button class="pill-btn" id="btn-swap" type="button" aria-label="和下一个球交换">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h12l-3-3 M17 17H5l3 3"/></svg>
+      换球
+    </button>
+    <button class="pill-btn ghost" id="btn-xray" type="button" aria-pressed="false" aria-label="显示软体物理结构">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="4" r="1.6"/><circle cx="20" cy="12" r="1.6"/><circle cx="12" cy="20" r="1.6"/><circle cx="4" cy="12" r="1.6"/></svg>
+      透视
+    </button>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay-start">
+  <div class="card">
+    <h1 class="title-word" aria-label="噗叽水球"><span>噗</span><span>叽</span><span>水</span><span>球</span></h1>
+    <p class="tagline">鼓鼓的软球：碰一下就晃，挤一挤就扁，松开又鼓回来。</p>
+    <ul class="howto">
+      <li><b>瞄准</b>在水箱里按住拖动，拖得越远力度越大，松手发射。</li>
+      <li><b>合成</b>两个相同数字的水球碰在一起，会合成一个更大的。</li>
+      <li><b>小心</b>有球停在虚线上方超过 3 秒，这局就结束了。</li>
+    </ul>
+    <button class="big-btn" id="btn-start" type="button">开始游戏</button>
+    <p class="keys">键盘也能玩：空格换球，S 摇一摇，P 暂停，X 透视。</p>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-pause" hidden>
+  <div class="card">
+    <h2>已暂停</h2>
+    <button class="big-btn" id="btn-resume" type="button">继续</button>
+    <button class="text-btn" id="btn-restart" type="button">重新开始</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-over" hidden>
+  <div class="card">
+    <h2>这局结束了</h2>
+    <div class="final-score"><span id="final-score">0</span><span class="unit">分</span></div>
+    <p class="final-meta" id="final-best"></p>
+    <div class="final-ball" id="final-ball"><span id="final-ball-value">2</span></div>
+    <p class="final-meta">最大的水球</p>
+    <button class="big-btn" id="btn-again" type="button">再来一局</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/color.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

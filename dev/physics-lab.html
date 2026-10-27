@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physics lab</title>
+<style>
+  html, body { margin: 0; background: #0b3a52; color: #e6f7ff; font: 13px system-ui, sans-serif; }
+  #wrap { display: flex; gap: 12px; padding: 10px; }
+  canvas { background: #0e4f6c; border-radius: 8px; touch-action: none; }
+  #info { white-space: pre; font-family: Consolas, monospace; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas><div id="info"></div></div>
+<script src="../js/config.js"></script>
+<script src="../js/physics.js"></script>
+<script>
+'use strict';
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const S = 0.8;
+const M = 20;
+cv.width = (CFG.world.w + M * 2) * S; cv.height = (CFG.world.h + M * 2) * S;
+const world = new PhysicsWorld();
+world.canMerge = (a, b) => !a.held && !b.held && a.cooldown <= 0 && b.cooldown <= 0;
+let showParticles = true;
+let frames = 0, stepAcc = 0;
+
+const lab = {
+  world,
+  spawn(level, x, y, vx = 0, vy = 0) { const b = world.add(new SoftBody(level, x, y)); b.setVelocity(vx, vy); return b; },
+  advance(sec) { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) tick(1 / 60); },
+  clear() { world.bodies.length = 0; },
+  stats() {
+    const bs = world.bodies;
+    // Balloons squeeze by design: report how full the most squeezed and most swollen ones are.
+    let minFill = Infinity, maxFill = 0, inverted = 0, out = 0, parts = 0;
+    for (const b of bs) {
+      parts += b.n;
+      const fill = b.area / (b.restArea * b.scale * b.scale);
+      if (fill < minFill) minFill = fill;
+      if (fill > maxFill) maxFill = fill;
+      if (b.area < 0) inverted++;
+      if (b.minX < -2 || b.maxX > CFG.world.w + 2 || b.maxY > CFG.world.h + 2 || b.minY < -2) out++;
+    }
+    return { bodies: bs.length, particles: parts, minFill: bs.length ? +minFill.toFixed(3) : 1, maxFill: +maxFill.toFixed(3), inverted, out, tangles: world.tangles,
+      stepMs: +world.stepMs.toFixed(2), avgStepMs: +(stepAcc / Math.max(1, frames)).toFixed(2),
+      maxSpeed: +Math.max(0, ...bs.map(b => b.speed)).toFixed(1) };
+  },
+};
+window.lab = lab;
+
+function tick(dt) {
+  for (const b of world.bodies) { b.age += dt; b.cooldown = Math.max(0, b.cooldown - dt); b.flash = Math.max(0, b.flash - dt / CFG.merge.flashTime); }
+  world.step(dt);
+  frames++; stepAcc += world.stepMs;
+  for (const [a, b] of world.mergePairs) {
+    if (a.dead || b.dead) continue;
+    const c = world.mergeInto(a, b, a.level + 1);
+    c.cooldown = CFG.merge.cooldown; c.flash = 1;
+    for (let i = 0; i < c.n; i++) c.vy[i] -= CFG.merge.pop;
+    world.remove(a); world.remove(b); world.add(c);
+    world.impulse(c.cx, c.cy, c.r + 30, CFG.merge.shock, c);
+  }
+}
+
+function smoothPath(b, inflate) {
+  const n = b.n, x = b.x, y = b.y, nx = b.nx, ny = b.ny;
+  const P = new Path2D();
+  const X = new Float64Array(n), Y = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = i === 0 ? n - 1 : i - 1;
+    let vx = nx[p] + nx[i], vy = ny[p] + ny[i];
+    const l = Math.hypot(vx, vy) || 1;
+    X[i] = x[i] + vx / l * inflate; Y[i] = y[i] + vy / l * inflate;
+  }
+  P.moveTo((X[0] + X[1]) / 2, (Y[0] + Y[1]) / 2);
+  for (let i = 1; i <= n; i++) {
+    const a = i % n, c = (i + 1) % n;
+    P.quadraticCurveTo(X[a], Y[a], (X[a] + X[c]) / 2, (Y[a] + Y[c]) / 2);
+  }
+  P.closePath();
+  return P;
+}
+
+function render() {
+  ctx.setTransform(S, 0, 0, S, M * S, M * S);
+  ctx.clearRect(-M, -M, CFG.world.w + 2 * M, CFG.world.h + 2 * M);
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(0, 0, CFG.world.w, CFG.world.h, [CFG.tank.cornerTop, CFG.tank.cornerTop, CFG.tank.cornerBottom, CFG.tank.cornerBottom]); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,90,90,.6)'; ctx.setLineDash([10, 8]);
+  ctx.beginPath(); ctx.moveTo(0, CFG.dangerY); ctx.lineTo(CFG.world.w, CFG.dangerY); ctx.stroke(); ctx.setLineDash([]);
+  for (const b of world.bodies) {
+    const pal = paletteFor(b.level);
+    const path = smoothPath(b, CFG.phys.thickness * 0.85);
+    ctx.fillStyle = b.flash > 0 ? mix(pal.base, '#ffffff', b.flash) : pal.base;
+    ctx.fill(path);
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 2; ctx.stroke(path);
+    if (showParticles) {
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      for (let i = 0; i < b.n; i++) { ctx.beginPath(); ctx.arc(b.x[i], b.y[i], 1.6, 0, TAU); ctx.fill(); }
+    }
+    ctx.save();
+    ctx.translate(b.cx, b.cy);
+    ctx.transform(b.defA, b.defC, b.defB, b.defD, 0, 0);
+    ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(b.r * 0.62)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(b.value, 0, 0);
+    ctx.restore();
+  }
+}
+
+function mix(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const r = ((pa >> 16) & 255) * (1 - t) + ((pb >> 16) & 255) * t;
+  const g = ((pa >> 8) & 255) * (1 - t) + ((pb >> 8) & 255) * t;
+  const bl = (pa & 255) * (1 - t) + (pb & 255) * t;
+  return `rgb(${r | 0},${g | 0},${bl | 0})`;
+}
+
+let running = new URLSearchParams(location.search).get('auto') !== '0';
+let last = performance.now();
+function loop(now) {
+  if (running) { tick(1 / 60); }
+  render();
+  document.getElementById('info').textContent = JSON.stringify(lab.stats(), null, 1);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+lab.render = render;
+lab.pause = () => { running = false; };
+lab.resume = () => { running = true; };
+
+// Click to drop a random small ball.
+cv.addEventListener('pointerdown', e => {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / S - M, y = (e.clientY - r.top) / S - M;
+  lab.spawn(1 + Math.floor(Math.random() * 4), x, y);
+});
+</script>
+</body>
+</html>

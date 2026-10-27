@@ -1,0 +1,11 @@
+{
+  "name": "soft-sphere-synthesis",
+  "private": true,
+  "description": "噗叽水球：软体物理合成小游戏（纯静态页面，部署到 Cloudflare Workers 静态资源）",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.108.0"
+  }
+}

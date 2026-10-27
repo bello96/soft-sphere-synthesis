@@ -1,0 +1,415 @@
+@font-face {
+  font-family: "Fredoka";
+  src: url("../assets/fonts/fredoka-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fredoka";
+  src: url("../assets/fonts/fredoka-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fredoka";
+  src: url("../assets/fonts/fredoka-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Everything around the tank stays quiet: the balloons are the only saturated colour. */
+:root {
+  --page: #1b1925;
+  --panel: #2b2836;
+  --panel-hi: #363244;
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #f2f0fa;
+  --muted: #9a97ad;
+  --ink: #100e18;
+  --coral: #ff5468;
+  --sunflower: #ffd93d;
+  --font: "Fredoka", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --stage-w: 420px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--page);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+/* ---- Top bar ---------------------------------------------------------------------- */
+
+.topbar {
+  width: min(100%, var(--stage-w));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 4px;
+}
+
+.scoreboard {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+
+.score-tile {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  transform-origin: 30% 80%;
+}
+
+.score-tile.bump { animation: bump 0.32s cubic-bezier(.3, 1.6, .5, 1); }
+
+@keyframes bump {
+  0% { transform: scale(1, 1); }
+  35% { transform: scale(1.12, 0.9); }
+  70% { transform: scale(0.96, 1.05); }
+  100% { transform: scale(1, 1); }
+}
+
+.score {
+  font-size: clamp(30px, 8.5vw, 40px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.best {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.best span { font-variant-numeric: tabular-nums; color: var(--text); }
+
+.top-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Buttons ---------------------------------------------------------------------- */
+
+button {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.icon-btn, .pill-btn {
+  border: 0;
+  background: var(--panel);
+  color: var(--text);
+  transition: transform 0.18s cubic-bezier(.3, 1.6, .5, 1), background-color 0.12s;
+}
+
+.icon-btn:hover, .pill-btn:hover { background: var(--panel-hi); }
+
+.icon-btn:active, .pill-btn:active, .big-btn:active {
+  transform: scale(1.05, 0.9);
+}
+
+.icon-btn:focus-visible, .pill-btn:focus-visible, .big-btn:focus-visible, .text-btn:focus-visible {
+  outline: 3px solid var(--sunflower);
+  outline-offset: 3px;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.icon-btn svg, .pill-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#btn-sound .off { display: none; }
+#btn-sound[aria-pressed="true"] .on { display: none; }
+#btn-sound[aria-pressed="true"] .off { display: inline; }
+
+.bottombar {
+  width: min(100%, var(--stage-w));
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 10px 12px;
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pill-btn.ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--panel-hi);
+}
+
+.pill-btn.ghost[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.pill-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.pips i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a465c;
+}
+
+.pips i.full { background: var(--coral); }
+
+/* ---- Stage ------------------------------------------------------------------------ */
+
+#stage {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* ---- Overlays --------------------------------------------------------------------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(10, 9, 15, 0.62);
+  z-index: 10;
+}
+
+.overlay[hidden] { display: none; }
+
+.card {
+  width: min(100%, 380px);
+  padding: 30px 24px 22px;
+  text-align: center;
+  background: #211e2c;
+  border-radius: 26px;
+  box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: card-in 0.42s cubic-bezier(.3, 1.5, .5, 1);
+}
+
+@keyframes card-in {
+  0% { transform: scale(0.85, 0.75); opacity: 0; }
+  60% { transform: scale(1.03, 0.98); opacity: 1; }
+  100% { transform: scale(1, 1); }
+}
+
+.card h2 {
+  margin: 4px 0 14px;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+/* Each character is a squashed balloon of its own colour. */
+.title-word {
+  margin: 0 0 10px;
+  font-size: 56px;
+  line-height: 1.15;
+  font-weight: 900;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.title-word span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.32em;
+  height: 1.22em;
+  border-radius: 46% 54% 50% 50% / 56% 52% 48% 44%;
+  background: var(--c);
+  color: var(--ink);
+  font-size: 0.62em;
+  transform: rotate(var(--r));
+  animation: letter-in 0.7s cubic-bezier(.3, 1.7, .5, 1) both;
+  animation-delay: var(--d);
+}
+
+.title-word span:nth-child(1) { --c: #ff5468; --r: -6deg; --d: 0.05s; }
+.title-word span:nth-child(2) { --c: #ffd93d; --r: 4deg; --d: 0.13s; }
+.title-word span:nth-child(3) { --c: #33c7f2; --r: -3deg; --d: 0.21s; }
+.title-word span:nth-child(4) { --c: #9a6bff; --r: 5deg; --d: 0.29s; }
+
+@keyframes letter-in {
+  0% { transform: translateY(-28px) scale(0.6, 1.4) rotate(var(--r)); opacity: 0; }
+  55% { transform: translateY(4px) scale(1.25, 0.75) rotate(var(--r)); opacity: 1; }
+  80% { transform: translateY(-2px) scale(0.94, 1.08) rotate(var(--r)); }
+  100% { transform: translateY(0) scale(1, 1) rotate(var(--r)); }
+}
+
+.tagline {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.howto {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  text-align: left;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.howto li {
+  display: flex;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+
+.howto li:first-child { border-top: 0; }
+
+.howto b {
+  flex: none;
+  min-width: 2.6em;
+  color: var(--sunflower);
+}
+
+.big-btn {
+  display: block;
+  width: 100%;
+  height: 54px;
+  border: 0;
+  border-radius: 27px;
+  background: var(--sunflower);
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 700;
+  transition: transform 0.18s cubic-bezier(.3, 1.6, .5, 1);
+}
+
+.text-btn {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.keys {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.final-score {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.final-score span:first-child {
+  font-size: 56px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.final-meta {
+  margin: 4px 0 14px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.final-ball {
+  width: 88px;
+  height: 80px;
+  margin: 6px auto 0;
+  border-radius: 48% 52% 46% 54% / 55% 50% 50% 45%;
+  display: grid;
+  place-items: center;
+  background: var(--ball, #ff5468);
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+@media (max-height: 640px) {
+  .title-word { font-size: 44px; }
+  .howto { font-size: 14px; }
+  .card { padding-top: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .title-word span, .score-tile.bump { animation: none; }
+  .icon-btn, .pill-btn, .big-btn { transition: none; }
+}

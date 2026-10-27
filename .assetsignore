@@ -1,0 +1,12 @@
+# Served: index.html, css/, js/, assets/ and the v1 snapshot in versions/. Everything else stays local.
+.git
+.gitignore
+.wrangler
+node_modules
+ReferenceResources
+dev
+docs
+*.md
+wrangler.jsonc
+package.json
+package-lock.json
