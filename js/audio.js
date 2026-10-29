@@ -160,22 +160,6 @@ class Sound {
     o.start(now); o.stop(now + 0.08);
   }
 
-  shake() {
-    if (!this.ready) return;
-    const now = this.ctx.currentTime;
-    for (let k = 0; k < 3; k++) {
-      const t = now + k * 0.07;
-      const o = this.ctx.createOscillator();
-      const g = this.ctx.createGain();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(180 + k * 40, t);
-      o.frequency.exponentialRampToValueAtTime(90, t + 0.12);
-      this.env(g, t, 0.01, 0.25, 0.12);
-      o.connect(g).connect(this.master);
-      o.start(t); o.stop(t + 0.16);
-    }
-  }
-
   gameOver() {
     if (!this.ready) return;
     const now = this.ctx.currentTime;

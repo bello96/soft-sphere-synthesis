@@ -20,8 +20,9 @@
 # 自动对局机器人：参数依次为 标签、对局秒数、视口宽、视口高、随机种子
 NO_PROXY='*' node dev/tools/cdp.mjs dev/tools/bot.mjs bot 180 390 844 7
 
-# 界面逐项点检（开始、发射、换球、摇一摇、透视、静音、暂停、重开、结束、最高分保存）
+# 界面逐项点检（开始、发射、画布不越出舞台、微信式迟到的底部安全区、新一局重新适配水箱、静音、暂停、重开、结束、最高分保存）
 NO_PROXY='*' node dev/tools/cdp.mjs dev/tools/ui-check.mjs final 390 844
+NO_PROXY='*' node dev/tools/cdp.mjs dev/tools/ui-check.mjs se 375 603   # 小屏：水箱高度不顶格，能看出重新适配
 ```
 
 截图默认存到系统临时目录下的 `squish-shots/`，可用环境变量 `SHOTS_DIR` 改。

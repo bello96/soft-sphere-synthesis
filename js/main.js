@@ -5,13 +5,15 @@
   const $ = id => document.getElementById(id);
   const canvas = $('game');
   const stageEl = $('stage');
-  fitWorldHeight(stageEl.clientWidth - 16, stageEl.clientHeight - 4);
+  // The tank's height can only change along with a fresh world, so it is fitted to the screen
+  // here and again whenever a round starts (the screen may have settled or turned since).
+  const fitWorld = () => fitWorldHeight(stageEl.clientWidth - 16, stageEl.clientHeight - 4);
+  fitWorld();
   const sound = new Sound();
   const renderer = new Renderer(canvas);
 
   const ui = {
-    score: $('score'), best: $('best'), scoreTile: $('score-tile'), pips: $('pips'),
-    shake: $('btn-shake'), swap: $('btn-swap'), xray: $('btn-xray'), soundBtn: $('btn-sound'),
+    score: $('score'), best: $('best'), scoreTile: $('score-tile'), soundBtn: $('btn-sound'),
     start: $('overlay-start'), pause: $('overlay-pause'), over: $('overlay-over'),
   };
 
@@ -27,10 +29,6 @@
         void ui.scoreTile.offsetWidth;
         ui.scoreTile.classList.add('bump');
       }
-    },
-    onCharges(n) {
-      [...ui.pips.children].forEach((pip, i) => pip.classList.toggle('full', i < n));
-      ui.shake.disabled = n <= 0;
     },
     onShake(amount) { renderer.addShake(amount); },
     onQueue() {},
@@ -70,6 +68,10 @@
     document.documentElement.style.setProperty('--stage-w', Math.max(w, 340) + 'px');
   }
   window.addEventListener('resize', layout);
+  // The stage can also change size with no window resize: WeChat on iOS applies the bottom
+  // safe-area inset after the first layout, which left the canvas too tall and spilling over
+  // the bars around it.
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stageEl);
   layout();
 
   // ---- Input --------------------------------------------------------------------------
@@ -113,7 +115,9 @@
     ui.over.hidden = true;
     ui.pause.hidden = true;
     shownScore = 0;
+    fitWorld();
     game.reset();
+    layout();
   }
 
   $('btn-start').addEventListener('click', startGame);
@@ -123,12 +127,6 @@
   $('btn-pause').addEventListener('click', () => {
     sound.unlock();
     if (game.state === 'paused') game.resume(); else { sound.click(); game.pause(); }
-  });
-  ui.shake.addEventListener('click', () => { sound.unlock(); game.useShake(); });
-  ui.swap.addEventListener('click', () => { sound.unlock(); game.swap(); });
-  ui.xray.addEventListener('click', () => {
-    renderer.xray = !renderer.xray;
-    ui.xray.setAttribute('aria-pressed', String(renderer.xray));
   });
   ui.soundBtn.addEventListener('click', () => {
     sound.unlock();
@@ -148,14 +146,8 @@
   window.addEventListener('keydown', e => {
     if (e.repeat) return;
     const k = e.key.toLowerCase();
-    if (k === ' ' || k === 'spacebar') {
-      if (game.state === 'playing') { game.swap(); e.preventDefault(); }
-    } else if (k === 'p' || k === 'escape') {
+    if (k === 'p' || k === 'escape') {
       if (game.state === 'playing') game.pause(); else if (game.state === 'paused') game.resume();
-    } else if (k === 's') {
-      game.useShake();
-    } else if (k === 'x') {
-      ui.xray.click();
     } else if (k === 'm') {
       ui.soundBtn.click();
     } else if (k === 'enter') {
@@ -166,6 +158,24 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && game.state === 'playing') game.pause();
   });
+
+  // ---- WeChat -------------------------------------------------------------------------
+
+  // Nothing on the page scrolls, yet a drag outside the canvas would pull the whole page down
+  // and uncover the in-app browser's backdrop ("网页由…提供" in WeChat).
+  document.addEventListener('touchmove', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+
+  // WeChat on Android scales page text by its own font-size setting (iOS is handled in the CSS);
+  // ask it to keep the default size. Unofficial API: a failure must never stop the game.
+  function keepWeChatFontSize() {
+    try {
+      const reset = () => WeixinJSBridge.invoke('setFontSizeCallback', { fontSize: 0 });
+      reset();
+      WeixinJSBridge.on('menu:setfont', reset);
+    } catch (e) { /* not available */ }
+  }
+  if (typeof WeixinJSBridge === 'object' && typeof WeixinJSBridge.invoke === 'function') keepWeChatFontSize();
+  else document.addEventListener('WeixinJSBridgeReady', keepWeChatFontSize);
 
   // ---- Loop ---------------------------------------------------------------------------
 

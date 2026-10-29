@@ -24,7 +24,20 @@ export default async (page, [tag = 'final', w = '390', h = '844']) => {
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: k === ' ' ? 'Space' : 'Key' + k.toUpperCase() });
     await page.sleep(120);
   };
+  // The canvas must sit inside the stage: never over the top bar, never past the screen bottom.
+  const fits = () => q(`(() => {
+    const box = id => document.getElementById(id).getBoundingClientRect();
+    const t = box('topbar'), s = box('stage'), c = box('game');
+    return c.top >= t.bottom - 0.5 && c.top >= s.top - 0.5 && c.bottom <= s.bottom + 0.5 && c.left >= s.left - 0.5 && c.right <= s.right + 0.5;
+  })()`);
+  // Tank height that fitWorldHeight picks for the current stage.
+  const fittedH = () => q(`(() => { const s = document.getElementById('stage'), W = CFG.world;
+    const h = Math.round((W.w + W.margin * 2) * (s.clientHeight - 4) / (s.clientWidth - 16)) - W.margin * 2;
+    return Math.max(W.minH, Math.min(W.maxH, h)); })()`);
   R.titleVisible = await q(`!document.getElementById('overlay-start').hidden`);
+  R.controlsRemoved = await q(`!document.querySelector('#bottombar, #btn-shake, #btn-swap, #btn-xray')
+    && typeof window.__game.swap === 'undefined' && typeof window.__game.useShake === 'undefined' && !('xray' in window.__renderer)`);
+  R.layoutFits = await fits();
   await click('#btn-start');
   await page.sleep(700);
   R.startedPlaying = await q(`window.__game.state === 'playing' && document.getElementById('overlay-start').hidden`);
@@ -39,30 +52,17 @@ export default async (page, [tag = 'final', w = '390', h = '844']) => {
   }
   R.afterShots = await q(`({ merges: window.__game.merges, score: window.__game.score, bodies: window.__game.world.bodies.length, scoreText: document.getElementById('score').textContent })`);
   R.hintGoneAfterShot = await q(`!window.__game.showHint`);
-  // Shake
-  const c0 = await q(`window.__game.charges`);
-  await click('#btn-shake');
-  R.shakeUsesCharge = (await q(`window.__game.charges`)) === c0 - 1 && (await q(`document.querySelectorAll('#pips i.full').length`)) === c0 - 1;
-  await page.sleep(1500);
-  // Swap (force different levels so the swap is observable)
-  await q(`(() => { const g = window.__game; if (g.queue[0] === g.held.level) g.queue[0] = g.held.level === 1 ? 2 : 1; })()`);
+  await page.shot(`${OUT}/${tag}-play.png`);
+  // The old swap / shake / x-ray keys do nothing now.
+  await page.waitFor(`window.__game.canAim()`, 5000);
+  const before = await q(`JSON.stringify([window.__game.held.level, window.__game.queue, window.__game.state])`);
+  for (const k of [' ', 's', 'x']) await key(k);
+  R.oldKeysInert = before === await q(`JSON.stringify([window.__game.held.level, window.__game.queue, window.__game.state])`);
+  // WeChat on iOS applies the bottom safe-area inset after the first layout, with no resize event.
+  await q(`window.__resizes = 0; addEventListener('resize', () => window.__resizes++)`);
+  await page.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 34, left: 0, right: 0 } });
   await page.sleep(400);
-  const before = await q(`[window.__game.held && window.__game.held.level, window.__game.queue[0]]`);
-  await click('#btn-swap');
-  await page.sleep(300);
-  const after = await q(`[window.__game.held && window.__game.held.level, window.__game.queue[0]]`);
-  R.swapWorks = before[0] === after[1] && before[1] === after[0];
-  await page.sleep(300);
-  await key(' ');
-  await page.sleep(300);
-  const after2 = await q(`[window.__game.held && window.__game.held.level, window.__game.queue[0]]`);
-  R.spaceSwaps = after2[0] === after[1] && after2[1] === after[0];
-  // X-ray toggle
-  await click('#btn-xray');
-  R.xrayOn = await q(`window.__renderer.xray && document.getElementById('btn-xray').getAttribute('aria-pressed') === 'true'`);
-  await page.shot(`${OUT}/${tag}-xray.png`);
-  await key('x');
-  R.xrayOffByKey = await q(`!window.__renderer.xray`);
+  R.fitsAfterLateInset = await fits() && await q(`window.__resizes === 0`);
   // Sound toggle
   await click('#btn-sound');
   R.muteOn = await q(`window.__game.sound.muted && document.getElementById('btn-sound').getAttribute('aria-pressed') === 'true'`);
@@ -78,6 +78,10 @@ export default async (page, [tag = 'final', w = '390', h = '844']) => {
   await click('#btn-restart');
   await page.sleep(500);
   R.restarted = await q(`window.__game.state === 'playing' && window.__game.score === 0`);
+  // A new round re-fits the tank to the stage as it is now (after the late inset).
+  R.newRoundRefitsTank = (await q(`CFG.world.h`)) === await fittedH() && await fits();
+  await page.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 0, right: 0 } });
+  await page.sleep(300);
   // A merge after the restart must persist the record immediately (no game over needed).
   await q(`(() => { const g = window.__game; const H = CFG.world.h;
     const a = g.world.add(new SoftBody(3, 250, H - 50)); const b = g.world.add(new SoftBody(3, 330, H - 50));

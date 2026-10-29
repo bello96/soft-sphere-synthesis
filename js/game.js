@@ -33,9 +33,6 @@ class Game {
     this.comboTimer = 0;
     this.merges = 0;
     this.maxLevel = 1;
-    this.charges = CFG.game.shakeCharges;
-    this.mergesTowardCharge = 0;
-    this.shakeCooldown = 0;
     this.held = null;
     this.lastRolls = [];
     this.queue = [this.rollLevel(), this.rollLevel()];
@@ -46,7 +43,6 @@ class Game {
     this.aim = { active: false, power: 0, dirX: 0, dirY: 1, preview: [], end: null };
     this.state = 'playing';
     this.hooks.onScore(this.score, this.best);
-    this.hooks.onCharges(this.charges);
   }
 
   // New balls follow a simple rule: small values are common, and the largest value that can
@@ -89,7 +85,6 @@ class Game {
       if (b.flash > 0) b.flash = Math.max(0, b.flash - dt / CFG.merge.flashTime);
       if (b.hitFlash > 0) b.hitFlash = Math.max(0, b.hitFlash - dt * 5);
     }
-    if (this.shakeCooldown > 0) this.shakeCooldown -= dt;
     if (this.state === 'playing') this.updateLauncher(dt);
     this.world.step(dt);
     this.handleMerges();
@@ -138,10 +133,10 @@ class Game {
     return clear;
   }
 
-  spawnHeld(level) {
+  spawnHeld() {
     const L = CFG.launcher;
-    const lv = level || this.queue.shift();
-    if (!level) this.queue.push(this.rollLevel());
+    const lv = this.queue.shift();
+    this.queue.push(this.rollLevel());
     const r = radiusForLevel(lv);
     // Nudge anything that drifted into the launcher so the new ball does not spawn inside it.
     for (const o of this.world.bodies) {
@@ -162,26 +157,9 @@ class Game {
     this.hooks.onQueue(this.held.level, this.queue[0]);
   }
 
-  swap() {
-    if (!this.canAim() || this.aim.active) return false;
-    const cur = this.held.level, next = this.queue[0];
-    if (cur === next) return false;
-    this.queue[0] = cur;
-    this.world.remove(this.held);
-    this.world.compact();
-    this.held = null;
-    this.spawnHeld(next);
-    this.held.animateScale(0.55, 1, 0.2);
-    this.held.fitRingToScale();
-    this.sound.click();
-    return true;
-  }
-
   // ---- Aiming -----------------------------------------------------------------------
 
   pointerDown(x, y) {
-    const s = this.nextSlot;
-    if (Math.hypot(x - s.x, y - s.y) < s.r + 16) { this.swap(); return; }
     if (!this.canAim()) return;
     this.aim.active = true;
     this.aimAt(x, y);
@@ -298,11 +276,6 @@ class Game {
         this.best = this.score;
         saveBest(this.best);
       }
-      this.mergesTowardCharge++;
-      if (this.mergesTowardCharge >= CFG.game.mergesPerCharge) {
-        this.mergesTowardCharge = 0;
-        if (this.charges < CFG.game.shakeCharges) { this.charges++; this.hooks.onCharges(this.charges); }
-      }
 
       const col = levelColors(level);
       this.fx.splash(x, y, col.light, 9 + Math.min(14, level), 150 + level * 14);
@@ -369,23 +342,6 @@ class Game {
     let maxLevel = this.maxLevel;
     for (const b of this.world.bodies) if (b.level > maxLevel) maxLevel = b.level;
     this.hooks.onState('over', { score: this.score, best: this.best, maxLevel, merges: this.merges });
-  }
-
-  useShake() {
-    if (this.state !== 'playing' || this.charges <= 0 || this.shakeCooldown > 0) return false;
-    this.charges--;
-    this.shakeCooldown = 0.8;
-    for (const b of this.world.bodies) {
-      if (b.held) continue;
-      const kick = (220 + Math.random() * 140) * Math.min(1.5, 0.55 + 40 / b.r);
-      const side = (Math.random() - 0.5) * 220;
-      for (let i = 0; i < b.n; i++) { b.vx[i] += side; b.vy[i] -= kick; }
-      b.sinceLaunch = 0;  // thrown balls get the same grace period as launched ones
-    }
-    this.sound.shake();
-    this.hooks.onShake(12);
-    this.hooks.onCharges(this.charges);
-    return true;
   }
 
   pause() {

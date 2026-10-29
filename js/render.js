@@ -9,8 +9,10 @@ const FRAME_RGB = [43, 40, 54];
 const FRAME_LIP = 'rgba(255, 255, 255, 0.07)';
 const DANGER_RGB = [255, 90, 78];
 // Outline offset beyond the skin particles. Contact keeps particles 2 * thickness apart, so the
-// visible seam between two touching balloons is 2 * (thickness - SEAM_INFLATE) wide.
-const SEAM_INFLATE = 0.6;
+// visible seam between two touching balloons is 2 * (thickness - SEAM_INFLATE) wide: 2.4 units,
+// about as thin as the reference's. Contacts almost never come closer than 2 * SEAM_INFLATE, so
+// touching outlines do not overlap.
+const SEAM_INFLATE = 1.8;
 
 class Renderer {
   constructor(canvas) {
@@ -22,10 +24,7 @@ class Renderer {
     this.shake = 0;
     this.shakeX = 0;
     this.shakeY = 0;
-    this.xray = false;
     this.reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.tankPath = roundedTankPath(0, CFG.tank.cornerTop, CFG.tank.cornerBottom);
-    this.framePath = roundedTankPath(8, CFG.tank.cornerTop + 8, CFG.tank.cornerBottom + 8);
     // Scratch buffers for outline vertices.
     this.vx = new Float64Array(256);
     this.vy = new Float64Array(256);
@@ -42,6 +41,9 @@ class Renderer {
     this.cv.height = Math.round(cssH * this.dpr);
     this.scale = this.cv.width / this.viewW;
     this.cssScale = cssW / this.viewW;
+    // The tank height is fitted to the screen again at the start of each round.
+    this.tankPath = roundedTankPath(0, CFG.tank.cornerTop, CFG.tank.cornerBottom);
+    this.framePath = roundedTankPath(8, CFG.tank.cornerTop + 8, CFG.tank.cornerBottom + 8);
   }
 
   // Client (CSS px relative to canvas) -> world units.
@@ -82,7 +84,6 @@ class Renderer {
     ctx.restore();
 
     this.drawFrame(ctx, danger);
-    if (this.xray) this.drawXray(ctx, game);
   }
 
   // Smooth closed outline through the skin particles, pushed out a little past the skin.
@@ -315,39 +316,6 @@ class Renderer {
     ctx.lineWidth = 2;
     ctx.strokeStyle = FRAME_LIP;
     ctx.stroke(this.tankPath);
-    ctx.restore();
-  }
-
-  // Physics view: particles, skin springs and the round rest shape each ball is inflated to.
-  drawXray(ctx, game) {
-    ctx.save();
-    for (const b of game.world.bodies) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let i = 0; i <= b.n; i++) {
-        const k = i % b.n;
-        if (i === 0) ctx.moveTo(b.x[k], b.y[k]); else ctx.lineTo(b.x[k], b.y[k]);
-      }
-      ctx.stroke();
-      ctx.setLineDash([4, 5]);
-      ctx.strokeStyle = 'rgba(255,230,120,0.7)';
-      ctx.beginPath();
-      ctx.arc(b.cx, b.cy, b.r * b.scale, 0, TAU);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.strokeStyle = 'rgba(255,230,120,0.5)';
-      ctx.beginPath();
-      ctx.moveTo(b.cx, b.cy);
-      ctx.lineTo(b.cx + Math.cos(b.angle) * b.r * b.scale, b.cy + Math.sin(b.angle) * b.r * b.scale);
-      ctx.stroke();
-      ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < b.n; i++) {
-        ctx.beginPath();
-        ctx.arc(b.x[i], b.y[i], 1.8, 0, TAU);
-        ctx.fill();
-      }
-    }
     ctx.restore();
   }
 }

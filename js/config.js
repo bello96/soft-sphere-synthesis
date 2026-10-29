@@ -67,8 +67,6 @@ const CFG = {
     dangerGrace: 1.1,  // a launched ball is ignored by the danger line for this long
     dangerLimit: 3.2,  // seconds above the line before the round ends
     comboWindow: 1.6,
-    shakeCharges: 3,
-    mergesPerCharge: 12,
   },
 };
 
